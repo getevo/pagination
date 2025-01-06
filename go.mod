@@ -1,4 +1,4 @@
-module githbub.com/getevo/pagination
+module github.com/getevo/pagination
 
 go 1.22
 
