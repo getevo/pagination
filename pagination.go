@@ -23,6 +23,7 @@ import (
 // - SetLimit: Sets the limit of rows per page. If the value is 0, the limit is set to the minimum limit of 10. If the limit is less than the minimum limit, it is set to the minimum
 type Pagination struct {
 	Model       *gorm.DB    `json:"-"`
+	Executed    bool        `json:"-"`
 	Success     bool        `json:"success"`
 	Error       *string     `json:"error,omitempty"`
 	Records     int         `json:"records"`      // Total rows
@@ -38,7 +39,7 @@ type Pagination struct {
 // SetCurrentPage sets the value of CurrentPage in the Pagination struct.
 // If the input page is not equal to zero, p.CurrentPage will be set to the input page.
 // Otherwise, p.CurrentPage will be set to 1.
-func (p *Pagination) SetCurrentPage(page int) {
+func (p *Pagination) setCurrentPage(page int) {
 	if page > 0 {
 		p.CurrentPage = page
 	} else {
@@ -48,11 +49,11 @@ func (p *Pagination) SetCurrentPage(page int) {
 
 func (p *Pagination) SetMaxSize(limit int) {
 	p.MaxSize = limit
-	p.SetSize(p.Size) // Update size if max size has been changed.
+	p.setSize(p.Size) // Update size if max size has been changed.
 }
 
 // SetSize sets the limit per page for the pagination struct. The limit must be between 10 and 100 (inclusive). If the limit is 0, it will be set to 10. If the limit is less than 10
-func (p *Pagination) SetSize(limit int) {
+func (p *Pagination) setSize(limit int) {
 	if limit != 0 {
 		p.Size = p.MaxSize
 	} else {
@@ -67,13 +68,13 @@ func (p *Pagination) SetSize(limit int) {
 
 }
 
-// SetPages sets the total number of pages in the pagination struct based on the number of records and the limit per page.
+// setPages sets the total number of pages in the pagination struct based on the number of records and the limit per page.
 // If the number of records is 0, it sets the number of pages to 1.
 // If there is no remainder when dividing the number of records by the limit, it sets the number of pages to the integer division.
 // Otherwise, it sets the number of pages to the integer division plus 1.
 // If the number of pages is 0, it sets it to 1.
 // After setting the number of pages, it calls the SetLast and SetPageRange methods to update the last page indicator and the range of visible pages respectively.
-func (p *Pagination) SetPages() {
+func (p *Pagination) setPages() {
 
 	if p.Records == 0 {
 		p.Pages = 1
@@ -92,15 +93,15 @@ func (p *Pagination) SetPages() {
 		p.Pages = 1
 	}
 
-	p.SetLast()
+	p.setLast()
 
 }
 
-// SetLast sets the value of the Last page in the pagination struct.
+// setLast sets the value of the Last page in the pagination struct.
 // It calculates the value by adding the current offset to the limit.
 // If the calculated value is greater than the total number of records,
 // it sets the Last page to the total number of records.
-func (p *Pagination) SetLast() {
+func (p *Pagination) setLast() {
 	p.Last = p.GetOffset() + p.Size
 	if p.Last > p.Records {
 		p.Last = p.Records
@@ -121,7 +122,8 @@ func (p *Pagination) GetPage() int {
 	return p.CurrentPage
 }
 
-func New(model *gorm.DB, request *evo.Request) *Pagination {
+func New(model *gorm.DB, request *evo.Request, out ...interface{}) (*Pagination, error) {
+	var err error
 	var p = Pagination{}
 	var limit = request.Query("limit").Int()
 	var page = request.Query("page").Int()
@@ -131,19 +133,22 @@ func New(model *gorm.DB, request *evo.Request) *Pagination {
 	if page < 1 {
 		page = 1
 	}
-	p.SetCurrentPage(page)
-	p.SetSize(limit)
-
-	return &p
+	p.setCurrentPage(page)
+	p.setSize(limit)
+	if len(out) > 0 {
+		n, err := p.LoadData(out[0])
+		return n, err
+	}
+	return &p, err
 }
 
-func (p *Pagination) Load(out interface{}) error {
+func (p *Pagination) LoadData(out interface{}) (*Pagination, error) {
 	var total int64
 	if err := p.Model.Count(&total).Error; err != nil {
-		return err
+		return p, err
 	}
 	p.Records = int(total)
-	p.SetPages()
+	p.setPages()
 
 	p.Model = p.Model.Limit(p.Size)
 	p.Model = p.Model.Offset(p.GetOffset())
@@ -151,11 +156,11 @@ func (p *Pagination) Load(out interface{}) error {
 		if err != nil {
 			p.Error = ptr.String("unable to load data from the database")
 		}
-		return err
+		return p, err
 	}
 	p.Success = true
 	p.Data = out
-	return nil
+	return p, nil
 }
 
 func (p *Pagination) GetResponse() outcome.Response {
