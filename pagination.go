@@ -8,9 +8,10 @@ import (
 )
 
 type Options struct {
-	Size    int `json:"size"`
-	Page    int `json:"page"`
-	MaxSize int `json:"maxSize"`
+	Size    int  `json:"size"`
+	Page    int  `json:"page"`
+	MaxSize int  `json:"maxSize"`
+	Debug   bool `json:"debug"`
 }
 
 // Pagination represents a utility type for handling pagination in Go.
@@ -30,6 +31,7 @@ type Options struct {
 type Pagination struct {
 	Model       *gorm.DB    `json:"-"`
 	Executed    bool        `json:"-"`
+	Debug       bool        `json:"-"`
 	Success     bool        `json:"success"`
 	Error       *string     `json:"error,omitempty"`
 	Records     int         `json:"records"`      // Total rows
@@ -127,6 +129,9 @@ func New(model *gorm.DB, request *evo.Request, out interface{}, options ...Optio
 		if opt.Page > 0 {
 			p.CurrentPage = opt.Page
 		}
+		if opt.Debug {
+			p.Debug = opt.Debug
+		}
 	}
 
 	n, err := p.LoadData(out)
@@ -134,6 +139,9 @@ func New(model *gorm.DB, request *evo.Request, out interface{}, options ...Optio
 }
 
 func (p *Pagination) LoadData(out interface{}) (*Pagination, error) {
+	if p.Debug {
+		p.Model = p.Model.Debug()
+	}
 	var total int64
 	if err := p.Model.Count(&total).Error; err != nil {
 		return p, err
