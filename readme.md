@@ -43,18 +43,28 @@ This example demonstrates how to paginate user orders:
 
 ```go
 func (c Controller) getUserOrdersHandler(request *evo.Request) any {
-if request.User().Anonymous() {
-return errors.New(403, "access denied")
-}
-var orders []models.Order
-var model = db.Where("uuid = ?", request.User().UUID())
-var p, err = pagination.New(model, request, &orders, pagination.Options{MaxSize: 50})
-if err != nil {
-log.Error(err)
-}
-return p
+    if request.User().Anonymous() {
+        return errors.New(403, "access denied")
+    }
+    var orders []models.Order
+    var model = db.Where("uuid = ?", request.User().UUID())
+    var p, err = pagination.New(model, request, &orders, pagination.Options{MaxSize: 50})
+    if err != nil {
+        log.Error(err)
+    }
+    return p
 }
 ```
+
+### Example Using cURL
+
+You can test the pagination API by adjusting the `size` and `page` parameters in the query string. For example:
+
+```sh
+curl --location 'https://api.example.com/api/user/orders?size=10&page=2'
+```
+
+
 
 ### Customizing Page and Size
 
@@ -62,9 +72,9 @@ You can customize the page and size directly in the options:
 
 ```go
 var p, err = pagination.New(model, request, &data, pagination.Options{
-Page:    2,
-Size:    20,
-MaxSize: 100,
+    Page:    2,
+    Size:    20,
+    MaxSize: 100,
 })
 ```
 
@@ -74,7 +84,7 @@ Enable debug mode to see detailed SQL logs:
 
 ```go
 var p, err = pagination.New(model, request, &data, pagination.Options{
-Debug: true,
+    Debug: true,
 })
 ```
 
@@ -84,7 +94,7 @@ The library gracefully handles errors. If an error occurs during data fetching, 
 
 ```go
 if err != nil {
-return errors.New(500, "Failed to fetch paginated data")
+    return errors.New(500, "Failed to fetch paginated data")
 }
 ```
 
@@ -94,10 +104,10 @@ The `Pagination` struct contains metadata you can use in your response:
 
 ```go
 response := map[string]interface{}{
-"total_records": p.Records,
-"current_page": p.CurrentPage,
-"total_pages":  p.Pages,
-"data":         p.Data,
+    "total_records": p.Records,
+    "current_page": p.CurrentPage,
+    "total_pages":  p.Pages,
+    "data":         p.Data,
 }
 return response
 ```
@@ -111,7 +121,7 @@ var products []models.Product
 var model = db.Where("category = ?", "electronics")
 var p, err = pagination.New(model, request, &products, pagination.Options{MaxSize: 20})
 if err != nil {
-log.Error(err)
+    log.Error(err)
 }
 return p
 ```
@@ -123,7 +133,7 @@ var logs []models.Log
 var model = db.Where("created_at BETWEEN ? AND ?", startDate, endDate)
 var p, err = pagination.New(model, request, &logs, pagination.Options{Size: 15, MaxSize: 50})
 if err != nil {
-log.Error(err)
+    log.Error(err)
 }
 return p
 ```
@@ -135,7 +145,7 @@ var users []models.User
 var model = db.Order("created_at DESC")
 var p, err = pagination.New(model, request, &users)
 if err != nil {
-log.Error(err)
+    log.Error(err)
 }
 return p
 ```
@@ -200,16 +210,3 @@ Returns a standardized response object.
 ```go
 func (p *Pagination) GetResponse() outcome.Response
 ```
-
----
-
-## Example Using cURL
-
-You can test the pagination API by adjusting the `size` and `page` parameters in the query string. For example:
-
-```sh
-curl --location 'https://api.example.com/api/user/orders?size=10&page=2'
-```
-
-
-
