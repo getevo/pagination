@@ -49,23 +49,6 @@ func (p *Pagination) setCurrentPage(page int) {
 
 func (p *Pagination) SetMaxSize(limit int) {
 	p.MaxSize = limit
-	p.setSize(p.Size) // Update size if max size has been changed.
-}
-
-// SetSize sets the limit per page for the pagination struct. The limit must be between 10 and 100 (inclusive). If the limit is 0, it will be set to 10. If the limit is less than 10
-func (p *Pagination) setSize(limit int) {
-	if limit != 0 {
-		p.Size = p.MaxSize
-	} else {
-		p.Size = 1
-	}
-
-	if p.Size < 1 {
-		p.Size = 1
-	} else if p.Size > p.MaxSize {
-		p.Size = p.MaxSize
-	}
-
 }
 
 // setPages sets the total number of pages in the pagination struct based on the number of records and the limit per page.
@@ -130,11 +113,17 @@ func New(model *gorm.DB, request *evo.Request, out ...interface{}) (*Pagination,
 	if limit < 10 {
 		limit = 10
 	}
+	if limit > p.MaxSize {
+		if p.MaxSize == 0 {
+			p.MaxSize = 50
+		}
+		limit = p.MaxSize
+	}
 	if page < 1 {
 		page = 1
 	}
 	p.setCurrentPage(page)
-	p.setSize(limit)
+
 	if len(out) > 0 {
 		n, err := p.LoadData(out[0])
 		return n, err
