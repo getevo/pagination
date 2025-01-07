@@ -8,7 +8,7 @@ import (
 )
 
 type Options struct {
-	Limit   int `json:"limit"`
+	Size    int `json:"size"`
 	Page    int `json:"page"`
 	MaxSize int `json:"maxSize"`
 }
@@ -110,16 +110,19 @@ func (p *Pagination) GetPage() int {
 
 func New(model *gorm.DB, request *evo.Request, out interface{}, options ...Options) (*Pagination, error) {
 	var err error
-	var p = Pagination{}
-	p.Size = request.Query("limit").Int()
+	var p = Pagination{
+		Model: model,
+		Size:  10,
+	}
+	p.Size = request.Query("size").Int()
 	p.CurrentPage = request.Query("page").Int()
 
 	for _, opt := range options {
 		if opt.MaxSize > 0 {
 			p.MaxSize = opt.MaxSize
 		}
-		if opt.Limit > 0 {
-			p.Size = opt.Limit
+		if opt.Size > 0 {
+			p.Size = opt.Size
 		}
 		if opt.Page > 0 {
 			p.CurrentPage = opt.Page
