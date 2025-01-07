@@ -7,6 +7,12 @@ import (
 	"gorm.io/gorm"
 )
 
+type Options struct {
+	Limit   int `json:"limit"`
+	Page    int `json:"page"`
+	MaxSize int `json:"maxSize"`
+}
+
 // Pagination represents a utility type for handling pagination in Go.
 //
 // Fields:
@@ -34,17 +40,6 @@ type Pagination struct {
 	First       int         `json:"first"` // First Page
 	Last        int         `json:"last"`  // Last Page
 	Data        interface{} `json:"data"`
-}
-
-// SetCurrentPage sets the value of CurrentPage in the Pagination struct.
-// If the input page is not equal to zero, p.CurrentPage will be set to the input page.
-// Otherwise, p.CurrentPage will be set to 1.
-func (p *Pagination) setCurrentPage(page int) {
-	if page > 0 {
-		p.CurrentPage = page
-	} else {
-		p.CurrentPage = 1
-	}
 }
 
 func (p *Pagination) SetMaxSize(limit int) {
@@ -76,18 +71,26 @@ func (p *Pagination) setPages() {
 		p.Pages = 1
 	}
 
-	p.setLast()
-
-}
-
-// setLast sets the value of the Last page in the pagination struct.
-// It calculates the value by adding the current offset to the limit.
-// If the calculated value is greater than the total number of records,
-// it sets the Last page to the total number of records.
-func (p *Pagination) setLast() {
 	p.Last = p.GetOffset() + p.Size
 	if p.Last > p.Records {
 		p.Last = p.Records
+	}
+
+	if p.Size < 10 {
+		p.Size = 10
+	}
+	if p.Size > p.MaxSize {
+		if p.MaxSize == 0 {
+			p.MaxSize = 50
+		}
+		p.Size = p.MaxSize
+	}
+	if p.CurrentPage > 0 {
+		if p.CurrentPage > p.Pages {
+			p.CurrentPage = p.Pages
+		}
+	} else {
+		p.CurrentPage = 1
 	}
 }
 
@@ -105,30 +108,26 @@ func (p *Pagination) GetPage() int {
 	return p.CurrentPage
 }
 
-func New(model *gorm.DB, request *evo.Request, out ...interface{}) (*Pagination, error) {
+func New(model *gorm.DB, request *evo.Request, out interface{}, options ...Options) (*Pagination, error) {
 	var err error
 	var p = Pagination{}
-	var limit = request.Query("limit").Int()
-	var page = request.Query("page").Int()
-	if limit < 10 {
-		limit = 10
-	}
-	if limit > p.MaxSize {
-		if p.MaxSize == 0 {
-			p.MaxSize = 50
-		}
-		limit = p.MaxSize
-	}
-	if page < 1 {
-		page = 1
-	}
-	p.setCurrentPage(page)
+	p.Size = request.Query("limit").Int()
+	p.CurrentPage = request.Query("page").Int()
 
-	if len(out) > 0 {
-		n, err := p.LoadData(out[0])
-		return n, err
+	for _, opt := range options {
+		if opt.MaxSize > 0 {
+			p.MaxSize = opt.MaxSize
+		}
+		if opt.Limit > 0 {
+			p.Size = opt.Limit
+		}
+		if opt.Page > 0 {
+			p.CurrentPage = opt.Page
+		}
 	}
-	return &p, err
+
+	n, err := p.LoadData(out)
+	return n, err
 }
 
 func (p *Pagination) LoadData(out interface{}) (*Pagination, error) {
