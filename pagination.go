@@ -60,7 +60,10 @@ func (p *Pagination) setPages() {
 		p.Pages = 1
 		return
 	}
+	if p.Size < 1 {
+		p.Size = 1
 
+	}
 	res := p.Records % p.Size
 	if res == 0 {
 		p.Pages = p.Records / p.Size
